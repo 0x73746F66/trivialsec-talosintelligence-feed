@@ -1,0 +1,13 @@
+{
+  "version": "0",
+  "id": "53dc4d37-cffa-4f76-80c9-8b7d4a4d2eaa",
+  "detail-type": "Scheduled Event",
+  "source": "aws.events",
+  "account": "984310022655",
+  "time": "2015-10-08T16:53:06Z",
+  "region": "au-southeast-2",
+  "resources": [
+    "arn:aws:events:ap-southeast-2:984310022655:rule/dev_feed_processor_talos-intelligence_schedule"
+  ],
+  "detail": {}
+}
