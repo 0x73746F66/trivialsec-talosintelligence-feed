@@ -111,9 +111,9 @@ def handler(event, context):
         results = fetch(feed)
         if not results:
             continue
-        # services.aws.delete_s3(f"{internals.APP_ENV}/feeds/talos-intelligence/{feed.name}/state.json")
+        # services.aws.delete_s3(f"{internals.APP_ENV}/feeds/{feed.source}/{feed.name}/state.json")
         services.aws.store_s3(
-            path_key=f"{internals.APP_ENV}/feeds/talos-intelligence/{feed.name}/{start.strftime('%Y%m%d%H')}.json",
+            path_key=f"{internals.APP_ENV}/feeds/{feed.source}/{feed.name}/{start.strftime('%Y%m%d%H')}.json",
             value=json.dumps(results, default=str)
         )
         for state_item in process(feed, results):
