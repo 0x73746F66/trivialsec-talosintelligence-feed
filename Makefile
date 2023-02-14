@@ -53,10 +53,10 @@ env:
 	@echo -e $(bold)$(primary)CI_BUILD_REF$(clear) = $(CI_BUILD_REF)
 
 output: env
-	@echo -e $(bold)$(primary)feed_processor_talos-intelligence_arn$(clear) = $(shell terraform -chdir=plans output feed_processor_talos-intelligence_arn)
-	@echo -e $(bold)$(primary)feed_processor_talos-intelligence_role$(clear) = $(shell terraform -chdir=plans output feed_processor_talos-intelligence_role)
-	@echo -e $(bold)$(primary)feed_processor_talos-intelligence_role_arn$(clear) = $(shell terraform -chdir=plans output feed_processor_talos-intelligence_role_arn)
-	@echo -e $(bold)$(primary)feed_processor_talos-intelligence_policy_arn$(clear) = $(shell terraform -chdir=plans output feed_processor_talos-intelligence_policy_arn)
+	@echo -e $(bold)$(primary)feed_processor_talos_arn$(clear) = $(shell terraform -chdir=plans output feed_processor_talos_arn)
+	@echo -e $(bold)$(primary)feed_processor_talos_role$(clear) = $(shell terraform -chdir=plans output feed_processor_talos_role)
+	@echo -e $(bold)$(primary)feed_processor_talos_role_arn$(clear) = $(shell terraform -chdir=plans output feed_processor_talos_role_arn)
+	@echo -e $(bold)$(primary)feed_processor_talos_policy_arn$(clear) = $(shell terraform -chdir=plans output feed_processor_talos_policy_arn)
 
 build: env ## makes the lambda zip archive
 	./.$(BUILD_ENV)/bin/build-archive

@@ -7,7 +7,7 @@
   "time": "2015-10-08T16:53:06Z",
   "region": "au-southeast-2",
   "resources": [
-    "arn:aws:events:ap-southeast-2:984310022655:rule/dev_feed_processor_talos-intelligence_schedule"
+    "arn:aws:events:ap-southeast-2:984310022655:rule/dev_feed_processor_talos_schedule"
   ],
   "detail": {}
 }

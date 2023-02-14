@@ -1,4 +1,4 @@
-data "aws_iam_policy_document" "feed_processor_talos-intelligence_assume_role_policy" {
+data "aws_iam_policy_document" "feed_processor_talos_assume_role_policy" {
   statement {
     sid = "${var.app_env}TrivialScannerFeedProcessorTalosIntelligenceAssumeRole"
     actions    = ["sts:AssumeRole"]
@@ -8,7 +8,7 @@ data "aws_iam_policy_document" "feed_processor_talos-intelligence_assume_role_po
     }
   }
 }
-data "aws_iam_policy_document" "feed_processor_talos-intelligence_iam_policy" {
+data "aws_iam_policy_document" "feed_processor_talos_iam_policy" {
   statement {
     sid = "${var.app_env}TrivialScannerFeedProcessorTalosIntelligenceLogging"
     actions   = [
@@ -63,19 +63,19 @@ data "aws_iam_policy_document" "feed_processor_talos-intelligence_iam_policy" {
     ]
   }
 }
-resource "aws_iam_role" "feed_processor_talos-intelligence_role" {
-  name               = "${lower(var.app_env)}_feed_processor_talos-intelligence_lambda_role"
-  assume_role_policy = data.aws_iam_policy_document.feed_processor_talos-intelligence_assume_role_policy.json
+resource "aws_iam_role" "feed_processor_talos_role" {
+  name               = "${lower(var.app_env)}_feed_processor_talos_lambda_role"
+  assume_role_policy = data.aws_iam_policy_document.feed_processor_talos_assume_role_policy.json
   lifecycle {
     create_before_destroy = true
   }
 }
-resource "aws_iam_policy" "feed_processor_talos-intelligence_policy" {
-  name        = "${lower(var.app_env)}_feed_processor_talos-intelligence_lambda_policy"
+resource "aws_iam_policy" "feed_processor_talos_policy" {
+  name        = "${lower(var.app_env)}_feed_processor_talos_lambda_policy"
   path        = "/"
-  policy      = data.aws_iam_policy_document.feed_processor_talos-intelligence_iam_policy.json
+  policy      = data.aws_iam_policy_document.feed_processor_talos_iam_policy.json
 }
 resource "aws_iam_role_policy_attachment" "policy_attach" {
-  role       = aws_iam_role.feed_processor_talos-intelligence_role.name
-  policy_arn = aws_iam_policy.feed_processor_talos-intelligence_policy.arn
+  role       = aws_iam_role.feed_processor_talos_role.name
+  policy_arn = aws_iam_policy.feed_processor_talos_policy.arn
 }
