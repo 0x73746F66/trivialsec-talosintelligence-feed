@@ -9,7 +9,7 @@ import models
 import services.aws
 
 
-def pre_process(contents: str) -> list[models.TalosIntelligence]:
+def pre_process(contents: str, category: str) -> list[models.TalosIntelligence]:
     internals.logger.debug("pre_process")
     results = []
     if not contents:
@@ -25,7 +25,7 @@ def pre_process(contents: str) -> list[models.TalosIntelligence]:
                 models.TalosIntelligence(
                     ip_address=ip_address.strip(),
                     last_seen=datetime.now(timezone.utc),
-                    category='ipreputation',
+                    category=category,
                 )
             )
         except ValidationError as err:
@@ -43,12 +43,12 @@ def fetch(feed: models.FeedConfig) -> list[models.TalosIntelligence]:
         return []
     file_path = internals.download_file(feed.url)
     if file_path.exists():
-        return pre_process(file_path.read_text(encoding='utf8'))
+        return pre_process(file_path.read_text(encoding='utf8'), feed.name)
     return []
 
 
 def process(feed: models.FeedConfig, feed_items: list[models.TalosIntelligence]) -> list[models.FeedStateItem]:
-    state = models.FeedState(source='talosintelligence.com', feed_name=feed.name)
+    state = models.FeedState(source=feed.source, feed_name=feed.name)
     # step 0, initial ONLY block
     if not state.load():
         internals.logger.warning("process step 0 initial ONLY")
