@@ -12,6 +12,6 @@ locals {
         AutomationTool = "Terraform"
     }
     timeout               = 300
-    memory_size           = 512
+    memory_size           = 256
     retention_in_days     = var.app_env == "Prod" ? 30 : 7
 }
