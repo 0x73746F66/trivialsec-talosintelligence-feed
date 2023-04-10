@@ -1,5 +1,5 @@
 output "feed_processor_talos_arn" {
-    value = aws_lambda_function.feed_processor_talos.arn
+  value = aws_lambda_function.feed_processor_talos.arn
 }
 output "feed_processor_talos_role" {
   value = aws_iam_role.feed_processor_talos_role.name
