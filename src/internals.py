@@ -7,8 +7,9 @@ import hmac
 import hashlib
 import threading
 import json
-from pathlib import Path
 import errno
+from pathlib import Path
+from uuid import UUID
 from os import path, getenv
 from socket import error as SocketError
 from typing import Union
@@ -18,6 +19,8 @@ from urllib.parse import urlparse
 from ipaddress import (
     IPv4Address,
     IPv6Address,
+    IPv4Network,
+    IPv6Network,
 )
 
 import boto3
@@ -32,6 +35,7 @@ from pydantic import (
 )
 
 
+TALOS_NAMESPACE = UUID('623977ce-d10c-4b12-b75b-5376135241ef')
 DEFAULT_LOG_LEVEL = logging.WARNING
 LOG_LEVEL = getenv("LOG_LEVEL", 'WARNING')
 CACHE_DIR = getenv("CACHE_DIR", "/tmp")
@@ -241,6 +245,9 @@ class JSONEncoder(json.JSONEncoder):
                 AnyHttpUrl,
                 IPv4Address,
                 IPv6Address,
+                IPv4Network,
+                IPv6Network,
+                UUID,
                 EmailStr,
             ),
         ):
