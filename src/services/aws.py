@@ -482,7 +482,6 @@ def put_dynamodb(item: dict, table_name: Tables, **kwargs) -> bool:
     try:
         table = dynamodb.Table(table_name.value)
         response = table.put_item(Item=data, **kwargs)
-        print(response)
         return response.get("ResponseMetadata", {}).get("RequestId") is not None
 
     except Exception as err:

@@ -2,8 +2,6 @@ import json
 from datetime import datetime, timezone
 from uuid import uuid5
 
-from pydantic.error_wrappers import ValidationError
-
 import internals
 import config
 import models
