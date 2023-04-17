@@ -78,7 +78,7 @@ class TalosIntelligence(BaseModel, DAL):
         return True
 
     def save(self) -> bool:
-        return services.aws.put_dynamodb(table_name=services.aws.Tables.EWS_TALOS, item=self.dict(), ConditionExpression='attribute_not_exists(id)')
+        return services.aws.put_dynamodb(table_name=services.aws.Tables.EWS_TALOS, item=self.dict())
 
     def delete(self) -> bool:
         return services.aws.delete_dynamodb(table_name=services.aws.Tables.EWS_TALOS, item_key={'address_id': str(self.address_id)})

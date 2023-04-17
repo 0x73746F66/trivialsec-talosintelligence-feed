@@ -38,7 +38,7 @@ def process(feed: models.FeedConfig) -> list[models.TalosIntelligence]:
         )
         if not data.exists() and data.save() and services.aws.store_sqs(
             queue_name=f'{internals.APP_ENV.lower()}-early-warning-service',
-            message_body=json.dumps({**data.dict(), **{'source', feed.source}}, cls=internals.JSONEncoder),
+            message_body=json.dumps({**data.dict(), **{'source': feed.source}}, cls=internals.JSONEncoder),
             deduplicate=False,
         ):
             results.append(data)
