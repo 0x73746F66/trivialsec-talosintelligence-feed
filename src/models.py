@@ -72,7 +72,7 @@ class TalosIntelligence(BaseModel, DAL):
 
         response = services.aws.get_dynamodb(table_name=services.aws.Tables.EWS_TALOS, item_key={'address_id': str(self.address_id)})
         if not response:
-            internals.logger.warning(f"Missing talos data for address_id: {self.address_id}")
+            internals.logger.warning(f"Missing item in data store for address_id: {self.address_id}")
             return False
         super().__init__(**response)
         return True
