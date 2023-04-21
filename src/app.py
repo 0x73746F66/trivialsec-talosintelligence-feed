@@ -29,8 +29,8 @@ def process(feed: models.FeedConfig) -> list[models.TalosIntelligence]:
             continue
         now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
         data = models.TalosIntelligence(
-            address_id=uuid5(internals.TALOS_NAMESPACE, ip_address.strip()),
-            ip_address=ip_address.strip(),
+            address_id=uuid5(internals.TALOS_NAMESPACE, ip_address),
+            ip_address=ip_address,
             feed_name=feed.name,
             feed_url=feed.url,
             first_seen=now,

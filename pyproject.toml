@@ -9,7 +9,7 @@ description = "Early Warning Service data source for Talos Intelligence"
 authors = [
     {name = "Christopher Langton", email = "chris@trivialsec.com"},
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
 ]

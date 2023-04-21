@@ -42,12 +42,13 @@ CACHE_DIR = getenv("CACHE_DIR", "/tmp")
 BUILD_ENV = getenv("BUILD_ENV", "development")
 JITTER_SECONDS = int(getenv("JITTER_SECONDS", default="30"))
 APP_ENV = getenv("APP_ENV", "Dev")
-APP_NAME = getenv("APP_NAME", "trivialscan-monitor-queue")
+APP_NAME = getenv("APP_NAME", "feed-processor-talos-intelligence")
 DASHBOARD_URL = "https://www.trivialsec.com"
 logger = logging.getLogger(__name__)
 if getenv("AWS_EXECUTION_ENV") is not None:
     boto3.set_stream_logger('boto3', getattr(logging, LOG_LEVEL, DEFAULT_LOG_LEVEL))
 logger.setLevel(getattr(logging, LOG_LEVEL, DEFAULT_LOG_LEVEL))
+logging.getLogger('urllib3').setLevel(logging.ERROR)
 
 
 def parse_authorization_header(authorization_header: str) -> dict[str, str]:
