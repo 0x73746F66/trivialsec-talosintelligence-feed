@@ -2,6 +2,7 @@
 from uuid import UUID, uuid5
 from ipaddress import IPv4Address, IPv6Address, IPv4Network, IPv6Network
 from abc import ABCMeta, abstractmethod
+from enum import Enum
 from typing import Union, Optional
 from datetime import datetime, timezone
 
@@ -33,10 +34,19 @@ class DAL(metaclass=ABCMeta):
         raise NotImplementedError
 
 
+class FeedName(str, Enum):
+    SSH_CLIENT = "sshclient"
+    IP_REPUTATION = "ipreputation"
+    SSH_PASSWORD_AUTH = "sshpwauth"
+    RECURSIVE_DNS = "dnsrd"
+    VNC_REMOTE_FRAME_BUFFER = "vncrfb"
+    COMPROMISED_IPS = "compromised-ips"
+
+
 class TalosIntelligence(BaseModel, DAL):
     address_id: UUID
     ip_address: Union[IPv4Address, IPv6Address, IPv4Network, IPv6Network]
-    feed_name: str
+    feed_name: FeedName
     feed_url: AnyHttpUrl
     first_seen: Optional[datetime]
     last_seen: datetime

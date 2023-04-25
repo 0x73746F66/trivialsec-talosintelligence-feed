@@ -276,7 +276,7 @@ def post_beacon(url: HttpUrl, body: dict, headers: dict = None):
 
 
 
-@retry((SocketError), tries=3, delay=1.5, backoff=1)
+@retry((SocketError), tries=5,  delay=1.5, backoff=1)
 def download_file(remote_file: str, temp_dir: str = CACHE_DIR) -> Path:
     session = requests.Session()
     remote_file = remote_file.replace(":80/", "/").replace(":443/", "/")
@@ -286,7 +286,7 @@ def download_file(remote_file: str, temp_dir: str = CACHE_DIR) -> Path:
         verify=remote_file.startswith('https'),
         allow_redirects=True,
         timeout=30,
-        headers={'User-Agent': "trivialsec.com"}
+        headers={'User-Agent': "Trivial Security"}
     )
     if not str(resp.status_code).startswith('2'):
         if resp.status_code == 403:

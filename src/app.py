@@ -2,6 +2,8 @@ import json
 from datetime import datetime, timezone
 from uuid import uuid5
 
+from lumigo_tracer import lumigo_tracer
+
 import internals
 import config
 import models
@@ -45,6 +47,19 @@ def process(feed: models.FeedConfig) -> list[models.TalosIntelligence]:
 
     return results
 
-def handler(event, context):
+
+def main():
     for feed in config.feeds:
         internals.logger.info(f"{len(process(feed))} queued records -> {feed.name}")
+
+
+def handler(event, context):
+    # hack to dynamically retrieve the token fresh with each Lambda invoke
+    @lumigo_tracer(
+        token=services.aws.get_ssm(f'/{internals.APP_ENV}/{internals.APP_NAME}/Lumigo/token', WithDecryption=True),
+        should_report=internals.APP_ENV == "Prod",
+        skip_collecting_http_body=True
+    )
+    def main_wrapper():
+        main()
+    main_wrapper()
