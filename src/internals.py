@@ -1,6 +1,5 @@
 # pylint: disable=no-self-argument, arguments-differ
 import contextlib
-from base64 import urlsafe_b64encode
 import re
 import logging
 import hmac
@@ -13,7 +12,7 @@ from uuid import UUID
 from os import path, getenv
 from socket import error as SocketError
 from typing import Union
-from base64 import b64encode
+from base64 import b64encode, urlsafe_b64encode
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 from ipaddress import (
@@ -25,6 +24,7 @@ from ipaddress import (
 
 import boto3
 import requests
+from lumigo_tracer import add_execution_tag
 from retry.api import retry
 from pydantic import (
     HttpUrl,
@@ -63,7 +63,7 @@ def parse_authorization_header(authorization_header: str) -> dict[str, str]:
             if not pairs or auth_param_re.match(pairs[-1]):  # type: ignore
                 pairs.append(pair)
             else:
-                pairs[-1] = pairs[-1] + "," + pair
+                pairs[-1] = f"{pairs[-1]},{pair}"
         if not auth_param_re.match(pairs[-1]):  # type: ignore
             raise ValueError("Malformed auth parameters")
     for pair in pairs:
@@ -275,17 +275,33 @@ def post_beacon(url: HttpUrl, body: dict, headers: dict = None):
     threading.Thread(target=_request_task, args=(url, body, headers)).start()
 
 
+def trace_tag(data: dict[str, str]):
+    if not isinstance(data, dict) or not all(
+        isinstance(key, str) and isinstance(value, str)
+        for key, value in data.items()
+    ):
+        raise ValueError(data)
+    for key, value in data.items():
+        if len(key) > 50:
+            logger.warning(f"Trace key must be less than 50 for: {value} See: https://docs.lumigo.io/docs/execution-tags#execution-tags-naming-limits-and-requirements")
+        if len(value) > 70:
+            logger.warning(f"Trace value must be less than 70 for: {value} See: https://docs.lumigo.io/docs/execution-tags#execution-tags-naming-limits-and-requirements")
+    if getenv("AWS_EXECUTION_ENV") is None or APP_ENV != "Prod":
+        return
+    for key, value in data.items():
+        add_execution_tag(key[:50], value=value[:70])
 
-@retry((SocketError), tries=5,  delay=1.5, backoff=1)
-def download_file(remote_file: str, temp_dir: str = CACHE_DIR) -> Path:
+
+@retry((SocketError), tries=5, delay=1.5, backoff=1)
+def download_file(remote_file: str, temp_dir: str = CACHE_DIR) -> Union[Path, None]:
     session = requests.Session()
     remote_file = remote_file.replace(":80/", "/").replace(":443/", "/")
-    logger.info(f"[bold]Downloading[/bold] {remote_file}")
-    resp = session.get(
+    logger.info(f"[bold]Checking freshness[/bold] {remote_file}")
+    resp = session.head(
         remote_file,
         verify=remote_file.startswith('https'),
         allow_redirects=True,
-        timeout=30,
+        timeout=5,
         headers={'User-Agent': "Trivial Security"}
     )
     if not str(resp.status_code).startswith('2'):
@@ -328,6 +344,13 @@ def download_file(remote_file: str, temp_dir: str = CACHE_DIR) -> Path:
             logger.info(f"[bold]Cached[/bold] {temp_path}")
             return Path(temp_path)
 
+    logger.info(f"[bold]Downloading[/bold] {remote_file}")
+    resp = session.get(
+        remote_file,
+        verify=remote_file.startswith('https'),
+        allow_redirects=True,
+        headers={'User-Agent': "Trivial Security"}
+    )
     handle = Path(temp_path)
     handle.write_text(resp.text, encoding='utf8')
     if etag:
