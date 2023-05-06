@@ -40,26 +40,20 @@ def compare_contents(old_contents: str, new_contents: str):
             yield ip_address
 
 
-@lumigo_tracer(
-    token=services.aws.get_ssm(f'/{internals.APP_ENV}/{internals.APP_NAME}/Lumigo/token', WithDecryption=True),
-    should_report=internals.APP_ENV == "Prod",
-    skip_collecting_http_body=True,
-    verbose=internals.APP_ENV != "Prod"
-)
-def handler(event, context):
-    internals.trace_tag({
-        "source": event["source"],
-        "resources": ",".join([
-            e.split(":")[-1] for e in event["resources"]
-        ]),
-    })
+def main(event):
+    if event.get("source"):
+        internals.trace_tag({
+            "source": event["source"],
+            "resources": ",".join([
+                e.split(":")[-1] for e in event["resources"]
+            ]),
+        })
     instance_date = datetime.now(timezone.utc).strftime('%Y%m%d%H')
     results = 0
     for feed in config.feeds:
         if feed.disabled:
             internals.logger.info(f"{feed.name} [magenta]disabled[/magenta]")
             continue
-        internals.trace_tag({"feed_name": feed.name})
         object_prefix = f"{internals.APP_ENV}/feeds/{feed.source}/{feed.name}/"
         services.aws.delete_s3(f"{object_prefix}latest.txt")
         last_contents = services.aws.get_s3(path_key=f"{object_prefix}latest.txt")
@@ -104,3 +98,16 @@ def handler(event, context):
             value=contents
         )
     internals.logger.info(f"{results} processed records")
+
+
+@lumigo_tracer(
+    token=services.aws.get_ssm(f'/{internals.APP_ENV}/{internals.APP_NAME}/Lumigo/token', WithDecryption=True),
+    should_report=internals.APP_ENV == "Prod",
+    skip_collecting_http_body=True,
+    verbose=internals.APP_ENV != "Prod"
+)
+def handler(event, context):
+    try:
+        main(event)
+    except Exception as err:
+        raise internals.UnspecifiedError from err

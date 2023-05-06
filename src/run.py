@@ -1,3 +1,4 @@
+import contextlib
 import sys
 import json
 import logging
@@ -16,7 +17,7 @@ AWS_ACCOUNT = getenv("AWS_ACCOUNT", "984310022655")
 AWS_REGION = getenv("AWS_REGION", "ap-southeast-2")
 
 def cli():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(tz=timezone.utc)
     invoke_payload = Path(f".{internals.BUILD_ENV}/invoke-payload.json")
     event = json.loads(invoke_payload.read_text(encoding="utf8"))
     context = {
@@ -72,16 +73,15 @@ def run():
         log_level = logging.INFO
     if parser.parse_args().log_level_debug:
         log_level = logging.DEBUG
-    log_format = "%(asctime)s - %(name)s - [%(levelname)s] %(message)s"
     if sys.stdout.isatty():
-        log_format = "%(message)s"
         logging.basicConfig(
-            format=log_format,
+            format="%(message)s",
             level=log_level,
             handlers=[RichHandler(rich_tracebacks=True, markup=True)],
         )
     internals.logger.setLevel(log_level)
-    cli()
+    with contextlib.suppress(KeyboardInterrupt):
+        cli()
 
 if __name__ == "__main__":
     run()
