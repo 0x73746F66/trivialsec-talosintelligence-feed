@@ -16,9 +16,10 @@ classifiers = [
 dependencies = [
     "lumigo-tracer >= 1.1.219",
     "pydantic == 1.9.2",
-    "requests",
     "retry",
     "validators",
+    "requests < 2.30.0",
+    "urllib3 < 2"
 ]
 
 [tool.coverage.run]

@@ -16,11 +16,21 @@ from botocore.exceptions import (
 
 import internals
 
-STORE_BUCKET = getenv("STORE_BUCKET", "trivialscan-dashboard-store")
-ssm_client = boto3.client(service_name="ssm")
-s3_client = boto3.client(service_name="s3")
-sqs_client = boto3.client(service_name="sqs")
-dynamodb = boto3.resource('dynamodb')
+
+STORE_BUCKET = getenv("STORE_BUCKET", default="trivialscan-dashboard-store")
+AWS_REGION = getenv("AWS_REGION", default="ap-southeast-2")
+if getenv("AWS_EXECUTION_ENV") is None:
+    boto3.setup_default_session(
+        profile_name=getenv("AWS_PROFILE_NAME"),
+        aws_access_key_id=getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=getenv("AWS_SECRET_ACCESS_KEY"),
+        aws_session_token=getenv("AWS_SESSION_TOKEN"),
+    )
+
+ssm_client = boto3.client(service_name="ssm", region_name=AWS_REGION)
+s3_client = boto3.client(service_name="s3", region_name=AWS_REGION)
+sqs_client = boto3.client(service_name="sqs", region_name=AWS_REGION)
+dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
 
 
 class Tables(str, Enum):
@@ -62,12 +72,13 @@ class StorageClass(str, Enum):
     backoff=1,
 )
 def object_exists(file_path: str, bucket_name: str = STORE_BUCKET, **kwargs):
+    internals.logger.info(f"object_exists {file_path} from bucket {bucket_name}")
     try:
         content = s3_client.head_object(Bucket=bucket_name, Key=file_path, **kwargs)
         return content.get("ResponseMetadata", None) is not None
     except ClientError as err:
         internals.logger.info(err, exc_info=True)
-        internals.report_error(err)
+        internals.always_log(err)
     return False
 
 
@@ -83,7 +94,7 @@ def object_exists(file_path: str, bucket_name: str = STORE_BUCKET, **kwargs):
     backoff=1,
 )
 def get_ssm(parameter: str, default: Any = None, **kwargs) -> Any:
-    internals.logger.info(f"requesting secret {parameter}")
+    internals.logger.info(f"get_ssm parameter {parameter}")
     try:
         response = ssm_client.get_parameter(Name=parameter, **kwargs)
         return (
@@ -99,7 +110,7 @@ def get_ssm(parameter: str, default: Any = None, **kwargs) -> Any:
         elif err.response["Error"]["Code"] == "InvalidParameterException":  # type: ignore
             internals.logger.warning(f"The request had invalid params: {err}")
         else:
-            internals.report_error(err)
+            internals.always_log(err)
     return default
 
 
@@ -116,7 +127,7 @@ def get_ssm(parameter: str, default: Any = None, **kwargs) -> Any:
     backoff=1,
 )
 def store_ssm(parameter: str, value: str, **kwargs) -> bool:
-    internals.logger.info(f"storing secret {parameter}")
+    internals.logger.info(f"store_ssm parameter {parameter}")
     try:
         response = ssm_client.put_parameter(Name=parameter, Value=value, **kwargs)
         return (
@@ -138,7 +149,7 @@ def store_ssm(parameter: str, value: str, **kwargs) -> bool:
                 msh="Platform is exhausted and unable to respond, please try again soon"
             ) from err
         else:
-            internals.report_error(err)
+            internals.always_log(err)
     return False
 
 
@@ -176,15 +187,15 @@ def list_s3(prefix_key: str, bucket_name: str = STORE_BUCKET) -> list[str]:
 
         except ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchBucket":  # type: ignore
-                internals.report_error(
+                internals.always_log(
                     f"The requested bucket {bucket_name} was not found"
                 )
             elif err.response["Error"]["Code"] == "InvalidObjectState":  # type: ignore
-                internals.report_error(f"The request was invalid due to: {err}")
+                internals.always_log(f"The request was invalid due to: {err}")
             elif err.response["Error"]["Code"] == "InvalidParameterException":  # type: ignore
-                internals.report_error(f"The request had invalid params: {err}")
+                internals.always_log(f"The request had invalid params: {err}")
             else:
-                internals.report_error(err)
+                internals.always_log(err)
             return []
         for item in results.get("Contents", []):
             k = item["Key"]  # type: ignore
@@ -212,7 +223,7 @@ def list_s3_objects(prefix_key: str, bucket_name: str = STORE_BUCKET) -> list[st
     - bucket_name: s3 bucket with target contents
     - prefix_key: pattern to match in s3
     """
-    internals.logger.info(f"list_s3 key prefix {prefix_key}")
+    internals.logger.info(f"list_s3_objects key prefix {prefix_key}")
     items = []
     next_token = ""
     base_kwargs = {
@@ -229,15 +240,15 @@ def list_s3_objects(prefix_key: str, bucket_name: str = STORE_BUCKET) -> list[st
 
         except ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchBucket":  # type: ignore
-                internals.report_error(
+                internals.always_log(
                     f"The requested bucket {bucket_name} was not found"
                 )
             elif err.response["Error"]["Code"] == "InvalidObjectState":  # type: ignore
-                internals.report_error(f"The request was invalid due to: {err}")
+                internals.always_log(f"The request was invalid due to: {err}")
             elif err.response["Error"]["Code"] == "InvalidParameterException":  # type: ignore
-                internals.report_error(f"The request had invalid params: {err}")
+                internals.always_log(f"The request had invalid params: {err}")
             else:
-                internals.report_error(err)
+                internals.always_log(err)
             return []
         for item in results.get("Contents", []):
             k = item["Key"]  # type: ignore
@@ -275,7 +286,7 @@ def get_s3(path_key: str, bucket_name: str = STORE_BUCKET, default: Any = None) 
         elif err.response["Error"]["Code"] == "InvalidParameterException":  # type: ignore
             internals.logger.warning(f"The request had invalid params: {err}")
         else:
-            internals.report_error(err)
+            internals.always_log(err)
     return default
 
 
@@ -306,7 +317,7 @@ def delete_s3(path_key: str, bucket_name: str = STORE_BUCKET, **kwargs) -> bool:
         elif err.response["Error"]["Code"] == "InvalidParameterException":  # type: ignore
             internals.logger.warning(f"The request had invalid params: {err}")
         else:
-            internals.report_error(err)
+            internals.always_log(err)
     return False
 
 
@@ -358,7 +369,7 @@ def store_s3(
                 msg="Platform is exhausted and unable to respond, please try again soon"
             ) from err
         else:
-            internals.report_error(err)
+            internals.always_log(err)
     return False
 
 
@@ -406,7 +417,7 @@ def store_sqs(
     message_group_id: Union[str, None] = None,
     **kwargs,
 ) -> bool:
-    internals.logger.info(f"storing {queue_name}")
+    internals.logger.info(f"store_sqs {queue_name}")
     internals.logger.debug(f"message {message_body}")
     if queue_name.endswith(".fifo"):
         if deduplicate and not deduplication_id:
@@ -416,7 +427,7 @@ def store_sqs(
     try:
         queue = sqs_client.get_queue_url(QueueName=queue_name)
         if not queue.get("QueueUrl"):
-            internals.report_error(f"no queue with name {queue_name}")
+            internals.always_log(f"no queue with name {queue_name}")
             return False
 
         params: dict[str, Any] = {
@@ -438,11 +449,11 @@ def store_sqs(
         )
     except ClientError as err:
         if err.response["Error"]["Code"] == "InvalidMessageContents":  # type: ignore
-            internals.report_error(f"InvalidMessageContents: {message_body}")
+            internals.always_log(f"InvalidMessageContents: {message_body}")
         elif err.response["Error"]["Code"] == "UnsupportedOperation":  # type: ignore
-            internals.report_error(f"UnsupportedOperation: {err}")
+            internals.always_log(f"UnsupportedOperation: {err}")
         else:
-            internals.report_error(err)
+            internals.always_log(err)
     return False
 
 @retry(
@@ -466,7 +477,7 @@ def get_dynamodb(item_key: dict, table_name: Tables, default: Any = None, **kwar
         return response.get("Item", default)
 
     except Exception as err:
-        internals.report_error(err)
+        internals.always_log(err)
     return default
 
 @retry(
@@ -488,7 +499,7 @@ def put_dynamodb(item: dict, table_name: Tables, **kwargs) -> bool:
         data = json.loads(raw, parse_float=str, parse_int=str)
     except json.JSONDecodeError as err:
         internals.logger.info(err, exc_info=True)
-        internals.report_error(err.msg)
+        internals.always_log(err.msg)
         return False
     try:
         table = dynamodb.Table(table_name.value)
@@ -512,7 +523,7 @@ def put_dynamodb(item: dict, table_name: Tables, **kwargs) -> bool:
     backoff=1,
 )
 def delete_dynamodb(item_key: dict, table_name: Tables, **kwargs) -> bool:
-    internals.logger.info(f"get_dynamodb table: {table_name.value}")
+    internals.logger.info(f"delete_dynamodb table: {table_name.value}")
     internals.logger.debug(f"item_key: {item_key}")
     try:
         table = dynamodb.Table(table_name.value)
@@ -521,7 +532,7 @@ def delete_dynamodb(item_key: dict, table_name: Tables, **kwargs) -> bool:
         return response.get("ResponseMetadata", {}).get("RequestId") is not None
 
     except Exception as err:
-        internals.report_error(err)
+        internals.always_log(err)
     return False
 
 @retry(
@@ -545,5 +556,5 @@ def query_dynamodb(table_name: Tables, **kwargs) -> list[dict]:
         return response.get("Items", [])
 
     except Exception as err:
-        internals.report_error(err)
+        internals.always_log(err)
     return []

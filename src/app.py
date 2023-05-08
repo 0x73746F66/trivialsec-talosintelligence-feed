@@ -78,7 +78,7 @@ def main(event):
         for ip_address in compare_contents(last_contents, contents):
             now = datetime.now(timezone.utc).replace(microsecond=0)
             data = models.TalosIntelligence(
-                address_id=uuid5(internals.TALOS_NAMESPACE, str(ip_address)),
+                address_id=uuid5(internals.NAMESPACE, str(ip_address)),
                 ip_address=ip_address,
                 feed_name=feed.name,
                 feed_url=feed.url,
@@ -98,6 +98,7 @@ def main(event):
             value=contents
         )
     internals.logger.info(f"{results} processed records")
+    return True
 
 
 @lumigo_tracer(
@@ -106,8 +107,9 @@ def main(event):
     skip_collecting_http_body=True,
     verbose=internals.APP_ENV != "Prod"
 )
-def handler(event, context):
+def handler(event, context):  # pylint: disable=unused-argument
     try:
-        main(event)
+        return main(event)
     except Exception as err:
-        raise internals.UnspecifiedError from err
+        internals.always_log(err)
+    return False

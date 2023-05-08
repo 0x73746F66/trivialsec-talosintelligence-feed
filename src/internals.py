@@ -1,9 +1,9 @@
 # pylint: disable=no-self-argument, arguments-differ
-import contextlib
 import logging
-import threading
 import json
 import errno
+from inspect import getframeinfo, stack
+from typing import Union
 from time import sleep
 from pathlib import Path
 from uuid import UUID
@@ -21,7 +21,7 @@ from ipaddress import (
 
 import boto3
 import requests
-from lumigo_tracer import add_execution_tag, report_error
+from lumigo_tracer import add_execution_tag, error as lumigo_error
 from retry.api import retry
 from pydantic import (
     HttpUrl,
@@ -31,20 +31,35 @@ from pydantic import (
 )
 
 
-TALOS_NAMESPACE = UUID('623977ce-d10c-4b12-b75b-5376135241ef')
+NAMESPACE = UUID('623977ce-d10c-4b12-b75b-5376135241ef')
 DEFAULT_LOG_LEVEL = logging.WARNING
-LOG_LEVEL = getenv("LOG_LEVEL", 'WARNING')
-CACHE_DIR = getenv("CACHE_DIR", "/tmp")
-BUILD_ENV = getenv("BUILD_ENV", "development")
+LOG_LEVEL = getenv("LOG_LEVEL", default="WARNING")
+CACHE_DIR = getenv("CACHE_DIR", default="/tmp")
+BUILD_ENV = getenv("BUILD_ENV", default="development")
 JITTER_SECONDS = int(getenv("JITTER_SECONDS", default="30"))
-APP_ENV = getenv("APP_ENV", "Dev")
-APP_NAME = getenv("APP_NAME", "feed-processor-talos-intelligence")
+APP_ENV = getenv("APP_ENV", default="Dev")
+APP_NAME = getenv("APP_NAME", default="feed-processor-talos-intelligence")
 DASHBOARD_URL = "https://www.trivialsec.com"
+
 logger = logging.getLogger(__name__)
 if getenv("AWS_EXECUTION_ENV") is not None:
     boto3.set_stream_logger('boto3', getattr(logging, LOG_LEVEL, DEFAULT_LOG_LEVEL))
 logger.setLevel(getattr(logging, LOG_LEVEL, DEFAULT_LOG_LEVEL))
 logging.getLogger('urllib3').setLevel(logging.ERROR)
+
+
+def always_log(message: Union[str, Exception]):
+    caller = getframeinfo(stack()[1][0])
+    alert_type = (
+        message.__class__.__name__
+        if hasattr(message, '__class__') and message is not str
+        else "UnhandledError"
+    )
+    filename = caller.filename.replace(getenv("LAMBDA_TASK_ROOT", ""), "") if getenv("AWS_EXECUTION_ENV") is not None and getenv("LAMBDA_TASK_ROOT") else caller.filename.split('/src/')[1]
+    lumigo_error(f"{filename}:{caller.function}:{caller.lineno} - {message}", alert_type, extra={
+        'LOG_LEVEL': LOG_LEVEL,
+        'NAMESPACE': NAMESPACE.hex,
+    })
 
 
 class DelayRetryHandler(Exception):
@@ -54,14 +69,6 @@ class DelayRetryHandler(Exception):
     def __init__(self, **kwargs):
         sleep(kwargs.get("delay", 3) or 3)
         Exception.__init__(self, kwargs.get("msg", "Max retries exceeded"))
-
-
-class UnspecifiedError(Exception):
-    """
-    The exception class for exceptions that weren't previously known.
-    """
-    def __init__(self, **kwargs):
-        Exception.__init__(self, kwargs.get("msg", "An unspecified error occurred"))
 
 
 class JSONEncoder(json.JSONEncoder):
@@ -99,22 +106,6 @@ class JSONEncoder(json.JSONEncoder):
         return super().default(o)
 
 
-def _request_task(url, body, headers):
-    with contextlib.suppress(requests.exceptions.ConnectionError):
-        requests.post(url, data=json.dumps(body, cls=JSONEncoder), headers=headers, timeout=(15, 30))
-
-
-def post_beacon(url: HttpUrl, body: dict, headers: dict = None):
-    """
-    A beacon is a fire and forget HTTP POST, the response is not
-    needed so we do not even wait for one, so there is no
-    response to discard because it was never received
-    """
-    if headers is None:
-        headers = {"Content-Type": "application/json"}
-    threading.Thread(target=_request_task, args=(url, body, headers)).start()
-
-
 def trace_tag(data: dict[str, str]):
     if not isinstance(data, dict) or not all(
         isinstance(key, str) and isinstance(value, str)
@@ -122,9 +113,9 @@ def trace_tag(data: dict[str, str]):
     ):
         raise ValueError(data)
     for key, value in data.items():
-        if len(key) > 50:
-            logger.warning(f"Trace key must be less than 50 for: {value} See: https://docs.lumigo.io/docs/execution-tags#execution-tags-naming-limits-and-requirements")
-        if len(value) > 70:
+        if 1 > len(key) > 50:
+            logger.warning(f"Trace key must be less than 50 for: {key} See: https://docs.lumigo.io/docs/execution-tags#execution-tags-naming-limits-and-requirements")
+        if 1 > len(value) > 70:
             logger.warning(f"Trace value must be less than 70 for: {value} See: https://docs.lumigo.io/docs/execution-tags#execution-tags-naming-limits-and-requirements")
     if getenv("AWS_EXECUTION_ENV") is None or APP_ENV != "Prod":
         return
@@ -151,7 +142,7 @@ def download_file(remote_file: str, temp_dir: str = CACHE_DIR) -> Union[Path, No
             logger.warning(f"Not Found {remote_file}")
             return
         else:
-            report_error(f"Unexpected HTTP response code {resp.status_code} for URL {remote_file}")
+            always_log(f"Unexpected HTTP response code {resp.status_code} for URL {remote_file}")
             return
 
     file_size = int(resp.headers.get('Content-Length', 0))
